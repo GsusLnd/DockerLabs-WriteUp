@@ -233,7 +233,7 @@ Ahora si ejecutamos el mismo comando con el token obtenido, podemos ver que tene
 
 ## Escalada de privilegios.
 
-Si probamos a acceder con el usuario `bob` y la contraseña encontrada anteriormente. Vemos que accedemos con éxito a la máquina.
+Si probamos a acceder a través de SSH con el usuario `bob` y la contraseña encontrada anteriormente. Vemos que accedemos con éxito a la máquina.
 
 Dentro de la máquina buscamos formas de escalar privilegios, y encontramos que podemos realizar la ejecución de `python3` como el usuario `balulero`.
 ```python
