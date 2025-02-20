@@ -84,7 +84,7 @@ PORT     STATE SERVICE
 
 ## Visualización de la página principal
 
-- **http://172.17.0.2**
+- **http://172.17.0.2:5000/**
 
   Como se puede observar, la página de inicio es una página para el uso de una API
 
