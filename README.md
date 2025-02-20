@@ -18,3 +18,4 @@
 | 11   | WhereIsMyWebShell   | 🟢 Fácil  | [El Pingüino de Mario](https://www.youtube.com/channel/UCGLfzfKRUsV6BzkrF1kJGsg)    | 12/04/2024  | [En Progreso](https://github.com/GutsNet/DockerLabs-WriteUp/blob/main/F%C3%A1cil/WhereIsMyWebShell.md) |
 | 12   | Vacaciones   | 🔵 Muy Fácil  | [Romambri](https://www.youtube.com/@romabripwn)    | 01/01/2000  | [En Progreso](https://github.com/GutsNet/DockerLabs-WriteUp/blob/main/Muy%20F%C3%A1cil/Vacaciones.md) |
 | 13   | Move   | 🟢 Fácil  | [El Pingüino de Mario](https://www.youtube.com/channel/UCGLfzfKRUsV6BzkrF1kJGsg)    | 01/01/2000  | [En Progreso](https://github.com/GutsNet/DockerLabs-WriteUp/blob/main/F%C3%A1cil/Move.md) |
+| 13   | ApiRoot   | 🟡 Medio  | [El Pingüino de Mario](https://www.youtube.com/channel/UCGLfzfKRUsV6BzkrF1kJGsg)    | 15/02/2025  | [Ver Guía](https://github.com/GutsNet/DockerLabs-WriteUp/blob/main/Medio/ApiRoot.md) |
